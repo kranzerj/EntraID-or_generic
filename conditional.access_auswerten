@@ -5,7 +5,7 @@
 <# 
 .SYNOPSIS
   Wertet Entra ID Sign-In-Logs für Conditional Access Policies aus:
-  - Report-Only: Anmeldungen, die *gebremst worden wären* (reportOnlyFailure)
+  - Report-Only: Anmeldungen, die *blockiert worden wären* (reportOnlyFailure)
   - Aktiv: Anmeldungen, die *tatsächlich geblockt wurden* (result=failure)
 
 .BENÖTIGT
