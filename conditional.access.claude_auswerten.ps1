@@ -26,12 +26,39 @@ try {
         exit
     }
 
+    # Account-Auswahl
+    Write-Host "========== ACCOUNT AUSWAHL ==========" -ForegroundColor Cyan
+    Write-Host "Mit welchem Account möchten Sie sich anmelden?`n"
+    
+    $accountChoice = Read-Host "Bitte UPN eingeben (z.B. admin@tenant.onmicrosoft.com) oder ENTER für interaktive Auswahl"
+    
     # Verbindung zu Microsoft Graph
-    Write-Host "Verbinde zu Microsoft Graph..." -ForegroundColor Cyan
-    Connect-MgGraph -Scopes "AuditLog.Read.All", "Directory.Read.All", "Policy.Read.All" -NoWelcome
+    Write-Host "`nVerbinde zu Microsoft Graph..." -ForegroundColor Cyan
+    
+    if ([string]::IsNullOrWhiteSpace($accountChoice)) {
+        # Interaktive Auswahl - Browser öffnet sich
+        Connect-MgGraph -Scopes "AuditLog.Read.All", "Directory.Read.All", "Policy.Read.All" -NoWelcome
+    } else {
+        # Mit spezifischem Account
+        Connect-MgGraph -Scopes "AuditLog.Read.All", "Directory.Read.All", "Policy.Read.All" -AccountId $accountChoice -NoWelcome
+    }
+    
+    # Verbindungsinfo anzeigen
+    $context = Get-MgContext
+    Write-Host "`nAngemeldet als: " -NoNewline -ForegroundColor Green
+    Write-Host $context.Account -ForegroundColor White
+    Write-Host "Tenant: " -NoNewline -ForegroundColor Green
+    Write-Host "$($context.TenantId)" -ForegroundColor White
+    
+    $confirm = Read-Host "`nIst dies der korrekte Tenant? (j/y/n)"
+    if ($confirm -ne "j" -and $confirm -ne "y") {
+        Write-Host "Abgebrochen. Bitte Script erneut starten." -ForegroundColor Yellow
+        Disconnect-MgGraph | Out-Null
+        exit
+    }
 
     # Anzahl Tage abfragen
-    $daysBack = Read-Host "Wie viele Tage zurück sollen die Logs ausgewertet werden?"
+    $daysBack = Read-Host "`nWie viele Tage zurück sollen die Logs ausgewertet werden?"
     $startDate = (Get-Date).AddDays(-[int]$daysBack).ToString("yyyy-MM-ddTHH:mm:ssZ")
 
     # Alle Conditional Access Policies abrufen
