@@ -26,29 +26,55 @@ try {
         exit
     }
 
-    # Account-Auswahl
-    Write-Host "========== ACCOUNT AUSWAHL ==========" -ForegroundColor Cyan
-    Write-Host "Mit welchem Account möchten Sie sich anmelden?`n"
+    # Bestehende Verbindung trennen
+    if (Get-MgContext) {
+        Write-Host "Trenne bestehende Microsoft Graph Verbindung..." -ForegroundColor Yellow
+        Disconnect-MgGraph | Out-Null
+    }
+
+    # Tenant-Auswahl
+    Write-Host "========== TENANT AUSWAHL ==========" -ForegroundColor Cyan
+    Write-Host "Für welchen Tenant möchten Sie sich anmelden?`n"
     
-    $accountChoice = Read-Host "Bitte UPN eingeben (z.B. admin@tenant.onmicrosoft.com) oder ENTER für interaktive Auswahl"
+    $tenantInput = Read-Host "Bitte Tenant ID oder Domain eingeben (z.B. contoso.onmicrosoft.com) oder ENTER für Account-Auswahl im Browser"
     
     # Verbindung zu Microsoft Graph
     Write-Host "`nVerbinde zu Microsoft Graph..." -ForegroundColor Cyan
+    Write-Host "Hinweis: Wählen Sie im Browser-Fenster den richtigen Account aus!`n" -ForegroundColor Yellow
     
-    if ([string]::IsNullOrWhiteSpace($accountChoice)) {
+    if ([string]::IsNullOrWhiteSpace($tenantInput)) {
         # Interaktive Auswahl - Browser öffnet sich
         Connect-MgGraph -Scopes "AuditLog.Read.All", "Directory.Read.All", "Policy.Read.All" -NoWelcome
     } else {
-        # Mit spezifischem Account
-        Connect-MgGraph -Scopes "AuditLog.Read.All", "Directory.Read.All", "Policy.Read.All" -AccountId $accountChoice -NoWelcome
+        # Mit spezifischem Tenant
+        Connect-MgGraph -Scopes "AuditLog.Read.All", "Directory.Read.All", "Policy.Read.All" -TenantId $tenantInput -NoWelcome
     }
     
     # Verbindungsinfo anzeigen
     $context = Get-MgContext
-    Write-Host "`nAngemeldet als: " -NoNewline -ForegroundColor Green
+    Write-Host "`n========== VERBINDUNGSINFO ==========" -ForegroundColor Green
+    Write-Host "Angemeldet als: " -NoNewline
     Write-Host $context.Account -ForegroundColor White
-    Write-Host "Tenant: " -NoNewline -ForegroundColor Green
+    Write-Host "Tenant ID: " -NoNewline
     Write-Host "$($context.TenantId)" -ForegroundColor White
+    
+    # Tenant-Name abrufen wenn möglich
+    try {
+        $orgInfo = Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/v1.0/organization" -Method GET
+        if ($orgInfo.value.Count -gt 0) {
+            Write-Host "Tenant Name: " -NoNewline
+            Write-Host "$($orgInfo.value[0].displayName)" -ForegroundColor White
+            if ($orgInfo.value[0].verifiedDomains) {
+                $primaryDomain = $orgInfo.value[0].verifiedDomains | Where-Object { $_.isInitial -eq $true }
+                Write-Host "Primary Domain: " -NoNewline
+                Write-Host "$($primaryDomain.name)" -ForegroundColor White
+            }
+        }
+    } catch {
+        Write-Host "Tenant-Details konnten nicht abgerufen werden" -ForegroundColor Gray
+    }
+    
+    Write-Host "`n" + ("=" * 40)
     
     $confirm = Read-Host "`nIst dies der korrekte Tenant? (j/y/n)"
     if ($confirm -ne "j" -and $confirm -ne "y") {
